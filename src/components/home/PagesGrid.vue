@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onUnmounted, type Directive } from 'vue'
-import { useEventListener } from '@vueuse/core'
+import { ref, computed, type Directive } from 'vue'
+import { useEventListener, useIntersectionObserver } from '@vueuse/core'
 import { RouterLink, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { pages } from '@/data/pages-loader'
@@ -8,44 +8,25 @@ import { padIndex } from '@/data/homepage'
 import { categories, type CategoryId } from '@/data/categories'
 import FavoriteButton from '@/components/FavoriteButton.vue'
 
-let observer: IntersectionObserver | null = null
+const vAnimate: Directive<HTMLElement & { __stopObserve?: () => void }, string | undefined> = {
+  mounted(el, binding) {
+    if (binding.value) el.style.animationDelay = binding.value
+    el.style.opacity = '0'
 
-function getObserver(): IntersectionObserver {
-  if (!observer) {
-    observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            ;(entry.target as HTMLElement).classList.add('animate-fade-up')
-            observer!.unobserve(entry.target)
-          }
+    const { stop } = useIntersectionObserver(
+      el,
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          el.classList.add('animate-fade-up')
+          stop()
         }
       },
       { threshold: 0.1 },
     )
-  }
-  return observer
-}
-
-onUnmounted(() => {
-  observer?.disconnect()
-  observer = null
-})
-
-const vAnimate: Directive<HTMLElement, string | undefined> = {
-  mounted(el, binding) {
-    if (typeof IntersectionObserver === 'undefined') {
-      el.classList.add('animate-fade-up')
-      return
-    }
-    if (binding.value) {
-      el.style.animationDelay = binding.value
-    }
-    el.style.opacity = '0'
-    getObserver().observe(el)
+    el.__stopObserve = stop
   },
   unmounted(el) {
-    observer?.unobserve(el)
+    el.__stopObserve?.()
   },
 }
 
